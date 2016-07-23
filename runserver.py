@@ -29,15 +29,14 @@ def start_locator_thread(args):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(module)11s] [%(levelname)7s] %(message)s')
+    args = get_args()
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s [' + args.num + '] [%(module)9s] [%(levelname)5s]%(message)s')
 
     logging.getLogger("peewee").setLevel(logging.INFO)
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("pogom.pgoapi.pgoapi").setLevel(logging.WARNING)
     logging.getLogger("pogom.pgoapi.rpc_api").setLevel(logging.INFO)
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
-
-    args = get_args()
 
     if args.debug:
         logging.getLogger("requests").setLevel(logging.DEBUG)
@@ -57,7 +56,6 @@ if __name__ == '__main__':
     config['ORIGINAL_LATITUDE'] = position[0]
     config['ORIGINAL_LONGITUDE'] = position[1]
     config['LOCALE'] = args.locale
-    config['CHINA'] = args.china
 
     if not args.mock:
         start_locator_thread(args)
