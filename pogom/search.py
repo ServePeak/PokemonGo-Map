@@ -101,13 +101,13 @@ def search(args):
 
 
 def search_loop(args):
-    while True:
-        search(args)
-        log.info("Scanning complete.")
-        if args.scan_delay > 1:
-            log.info('Waiting {:d} seconds before beginning new scan.'.format(args.scan_delay))
-        time.sleep(args.scan_delay)
-        
+    try:
+      while True:
+          search(args)
+          log.info("Scanning complete.")
+          if args.scan_delay > 1:
+              log.info('Waiting {:d} seconds before beginning new scan.'.format(args.scan_delay))
+          time.sleep(args.scan_delay)
     except Exception as e:
         log.info('Crashed, waiting {:d} seconds before restarting search.'.format(args.scan_delay))
         time.sleep(args.scan_delay)
