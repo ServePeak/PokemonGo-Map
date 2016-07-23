@@ -22,9 +22,6 @@ def parse_unicode(bytestring):
 def parse_config(args):
     Config = ConfigParser.ConfigParser()
     Config.read(os.path.join(os.path.dirname(__file__), '../config/config.ini'))
-    args.auth_service = Config.get('Authentication', 'Service')
-    args.username = Config.get('Authentication', 'Username')
-    args.password = Config.get('Authentication', 'Password')
     args.location = Config.get('Search_Settings', 'Location')
     args.step_limit = int(Config.get('Search_Settings', 'Steps'))
     args.scan_delay = int(Config.get('Search_Settings', 'Scan_delay'))
@@ -39,7 +36,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-se', '--settings',action='store_true',default=False)
     parser.add_argument('-a', '--auth-service', type=str.lower, help='Auth Service', default='ptc')
-    parser.add_argument('-u', '--username', help='Username', required=False)
+    parser.add_argument('-u', '--username', help='Username', required=True)
     parser.add_argument('-p', '--password', help='Password', required=False)
     parser.add_argument('-l', '--location', type=parse_unicode, help='Location, can be an address or coordinates', required=False)
     parser.add_argument('-st', '--step-limit', help='Steps', required=False, type=int)
@@ -57,6 +54,7 @@ def get_args():
     parser.add_argument('-C', '--cors', help='Enable CORS on web server', action='store_true', default=False)
     parser.add_argument('-D', '--db', help='Database filename', default='pogom.db')
     parser.add_argument('-t', '--threads', help='Number of search threads', required=False, type=int, default=5, dest='num_threads')
+    parser.add_argument('-N', '--num', help='Number to differentiate runs', required=True)
     parser.set_defaults(DEBUG=False)
     args = parser.parse_args()
 
