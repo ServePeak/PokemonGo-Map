@@ -33,14 +33,14 @@ class Pogom(Flask):
         if request.args.get('pokemon', 'true') == 'true':
             d['pokemons'] = Pokemon.get_active()
 
-        if request.args.get('pokestops', 'false') == 'true':
-            d['pokestops'] = Pokestop.get_all()
+        #if request.args.get('pokestops', 'false') == 'true':
+        #    d['pokestops'] = Pokestop.get_all()
 
-        if request.args.get('gyms', 'true') == 'true':
-            d['gyms'] = Gym.get_all()
+        #if request.args.get('gyms', 'true') == 'true':
+        #    d['gyms'] = Gym.get_all()
 
-        if request.args.get('scanned', 'true') == 'true':
-            d['scanned'] = ScannedLocation.get_recent()
+        #if request.args.get('scanned', 'true') == 'true':
+        #    d['scanned'] = ScannedLocation.get_recent()
 
         return jsonify(d)
 
