@@ -22,13 +22,19 @@ def parse_unicode(bytestring):
 def parse_config(args):
     Config = ConfigParser.ConfigParser()
     Config.read(os.path.join(os.path.dirname(__file__), '../config/config.ini'))
-    args.location = Config.get('Search_Settings', 'Location')
-    args.step_limit = int(Config.get('Search_Settings', 'Steps'))
-    args.scan_delay = int(Config.get('Search_Settings', 'Scan_delay'))
-    if Config.get('Misc', 'Google_Maps_API_Key') :
-        args.gmaps_key = Config.get('Misc', 'Google_Maps_API_Key') 
-    args.host = Config.get('Misc', 'Host') 
-    args.port = Config.get('Misc', 'Port') 
+    args.step_limit = int(Config.get('Search', 'Steps'))
+    args.scan_delay = int(Config.get('Search', 'Scan_delay'))
+    args.host = Config.get('Web', 'Host') 
+    args.port = int(Config.get('Web', 'Port'))
+    args.db = Config.get('MySQL', 'Database')
+    args.user = Config.get('MySQL', 'Username')
+    args.pword = Config.get('MySQL', 'Password')
+    args.myhost = Config.get('MySQL', 'Host')
+    args.google = Config.get('API_Keys', 'google')
+    args.twit1 = Config.get('API_Keys', 'twitter_access_token')
+    args.twit2 = Config.get('API_Keys', 'twitter_access_secret')
+    args.twit3 = Config.get('API_Keys', 'twitter_consumer_key')
+    args.twit4 = Config.get('API_Keys', 'twitter_consumer_secret')
     return args
 
 def get_args():
@@ -52,22 +58,18 @@ def get_args():
     parser.add_argument('-ns', '--no-server', help='No-Server Mode. Starts the searcher but not the Webserver.', action='store_true', default=False, dest='no_server')
     parser.add_argument('-k', '--google-maps-key', help='Google Maps Javascript API Key', default=None, dest='gmaps_key')
     parser.add_argument('-C', '--cors', help='Enable CORS on web server', action='store_true', default=False)
-    parser.add_argument('-D', '--db', help='Database filename', default='pogom.db')
-    parser.add_argument('-t', '--threads', help='Number of search threads', required=False, type=int, default=5, dest='num_threads')
     parser.add_argument('-N', '--num', help='Number to differentiate runs', required=True)
     parser.set_defaults(DEBUG=False)
     args = parser.parse_args()
+    
+    args = parse_config(args) 
+    if (args.username is None or args.location is None or args.step_limit is None):
+        parser.print_usage()
+        print sys.argv[0] + ': error: arguments -u/--username, -l/--location, -st/--step-limit, -N/--num are required'
+        sys.exit(1);
 
-    if (args.settings):
-        args = parse_config(args) 
-    else:
-        if (args.username is None or args.location is None or args.step_limit is None):
-            parser.print_usage()
-            print sys.argv[0] + ': error: arguments -u/--username, -l/--location, -st/--step-limit are required'
-            sys.exit(1);
-
-        if args.password is None:
-            args.password = getpass.getpass()
+    if args.password is None:
+        args.password = getpass.getpass()
 
     return args
 

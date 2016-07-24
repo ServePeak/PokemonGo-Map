@@ -27,7 +27,6 @@ def start_locator_thread(args):
     search_thread.name = 'search_thread'
     search_thread.start()
 
-
 if __name__ == '__main__':
     args = get_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [' + args.num + '] [%(module)9s] [%(levelname)5s]%(message)s')
@@ -37,14 +36,15 @@ if __name__ == '__main__':
     logging.getLogger("pogom.pgoapi.pgoapi").setLevel(logging.WARNING)
     logging.getLogger("pogom.pgoapi.rpc_api").setLevel(logging.INFO)
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
-
+    
     if args.debug:
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
+    db = init_database(args)
     create_tables()
-
+    
     position = get_pos_by_name(args.location)
     if not any(position):
         log.error('Could not get a position by name, aborting.')
