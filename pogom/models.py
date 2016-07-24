@@ -14,7 +14,13 @@ from .customLog import printPokemon
 
 log = logging.getLogger(__name__)
 
-db = None
+credentials = load_credentials(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+db = MySQLDatabase(
+    credentials['mysql_db'], 
+    user=credentials['mysql_user'], 
+    passwd=credentials['mysql_pass'], 
+    host=credentials['mysql_host'],
+    port=int(credentials['mysql_port']))
 
 class BaseModel(Model):
     class Meta:
@@ -151,20 +157,6 @@ def bulk_upsert(cls, data):
         log.debug("Inserting items {} to {}".format(i, min(i+step, num_rows)))
         InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
         i+=step
-
-def init_database(): 
-    global db
-    if db is not None:
-        return db
-
-    credentials = load_credentials(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    db = MySQLDatabase(
-        credentials['mysql_db'], 
-        user=credentials['mysql_user'], 
-        password=credentials['mysql_pass'], 
-        host=credentials['mysql_host'])
-    log.info('Connecting to MySQL database on {}.'.format(credentials['mysql_host']))
-    return db
 
 def create_tables():
     db.connect()

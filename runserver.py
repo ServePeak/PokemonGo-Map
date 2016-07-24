@@ -43,7 +43,6 @@ if __name__ == '__main__':
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
-    db = init_database()
     create_tables()
 
     position = get_pos_by_name(args.location)
