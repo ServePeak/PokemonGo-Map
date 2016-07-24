@@ -3,18 +3,32 @@
 
 import logging
 import os
-from peewee import Model, MySQLDatabase, InsertQuery, IntegerField,\
-                   CharField, FloatField, BooleanField, DateTimeField
+from peewee import Model, MySQLDatabase, InsertQuery, IntegerField, CharField, FloatField, BooleanField, DateTimeField
 from datetime import datetime
 from base64 import b64encode
 
-from .utils import get_pokemon_name, load_credentials
+from .utils import get_pokemon_name, get_args
 from .transform import transform_from_wgs_to_gcj
 from .customLog import printPokemon
 
 log = logging.getLogger(__name__)
 
 db = None
+
+def init_database(): 
+    args = get_args()
+    global db
+    if db is not None:
+        return db
+
+    db = MySQLDatabase(
+        args.db, 
+        user=args.user, 
+        passwd=args.pword, 
+        host=args.myhost)
+    log.info(args.db)
+    log.info('Connecting to MySQL database on {}.'.format(args.myhost))
+    return db
 
 class BaseModel(Model):
     class Meta:
@@ -49,33 +63,6 @@ class Pokemon(BaseModel):
 
         return pokemons
 
-
-class Pokestop(BaseModel):
-    pokestop_id = CharField(primary_key=True)
-    enabled = BooleanField()
-    latitude = FloatField()
-    longitude = FloatField()
-    last_modified = DateTimeField()
-    lure_expiration = DateTimeField(null=True)
-    active_pokemon_id = IntegerField(null=True)
-
-
-class Gym(BaseModel):
-    UNCONTESTED = 0
-    TEAM_MYSTIC = 1
-    TEAM_VALOR = 2
-    TEAM_INSTINCT = 3
-
-    gym_id = CharField(primary_key=True)
-    team_id = IntegerField()
-    guard_pokemon_id = IntegerField()
-    gym_points = IntegerField()
-    enabled = BooleanField()
-    latitude = FloatField()
-    longitude = FloatField()
-    last_modified = DateTimeField()
-
-
 def parse_map(map_dict):
     pokemons = {}
     pokestops = {}
@@ -97,50 +84,10 @@ def parse_map(map_dict):
                 'disappear_time': d_t
             }
 
-        for f in cell.get('forts', []):
-            if f.get('type') == 1:  # Pokestops
-                    if 'lure_info' in f:
-                        lure_expiration = datetime.utcfromtimestamp(
-                            f['lure_info']['lure_expires_timestamp_ms'] / 1000.0)
-                        active_pokemon_id = f['lure_info']['active_pokemon_id']
-                    else:
-                        lure_expiration, active_pokemon_id = None, None
-
-                    pokestops[f['id']] = {
-                        'pokestop_id': f['id'],
-                        'enabled': f['enabled'],
-                        'latitude': f['latitude'],
-                        'longitude': f['longitude'],
-                        'last_modified': datetime.utcfromtimestamp(
-                            f['last_modified_timestamp_ms'] / 1000.0),
-                        'lure_expiration': lure_expiration,
-                        'active_pokemon_id': active_pokemon_id
-                }
-
-            else:  # Currently, there are only stops and gyms
-                gyms[f['id']] = {
-                    'gym_id': f['id'],
-                    'team_id': f['owned_by_team'],
-                    'guard_pokemon_id': f['guard_pokemon_id'],
-                    'gym_points': f['gym_points'],
-                    'enabled': f['enabled'],
-                    'latitude': f['latitude'],
-                    'longitude': f['longitude'],
-                    'last_modified': datetime.utcfromtimestamp(
-                        f['last_modified_timestamp_ms'] / 1000.0),
-                }
 
     if pokemons:
         log.info("Upserting {} pokemon".format(len(pokemons)))
         bulk_upsert(Pokemon, pokemons)
-
-    #if pokestops:
-    #    log.info("Upserting {} pokestops".format(len(pokestops)))
-    #    bulk_upsert(Pokestop, pokestops)
-
-    #if gyms:
-    #    log.info("Upserting {} gyms".format(len(gyms)))
-    #    bulk_upsert(Gym, gyms)
 
 def bulk_upsert(cls, data):
     num_rows = len(data.values())
@@ -150,24 +97,10 @@ def bulk_upsert(cls, data):
     while i < num_rows:
         log.debug("Inserting items {} to {}".format(i, min(i+step, num_rows)))
         InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
+        db.close()
         i+=step
-
-def init_database(args): 
-    global db
-    if db is not None:
-        return db
-
-    credentials = load_credentials(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    db = MySQLDatabase(
-        args.db, 
-        user=args.user, 
-        passwd=args.pword, 
-        host=args.myhost)
-    log.info(args.db)
-    log.info('Connecting to MySQL database on {}.'.format(credentials['mysql_host']))
-    return db
 
 def create_tables():
     db.connect()
-    db.create_tables([Pokemon, Pokestop, Gym], safe=True)
+    db.create_tables([Pokemon], safe=True)
     db.close()

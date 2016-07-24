@@ -7,13 +7,12 @@ import logging
 import time
 
 from threading import Thread
-from flask_cors import CORS, cross_origin
 
 from pogom import config
 from pogom.app import Pogom
-from pogom.utils import get_args, insert_mock_data, load_credentials
+from pogom.utils import get_args
 from pogom.search import search_loop
-from pogom.models import init_database, create_tables, Pokemon, Pokestop, Gym
+from pogom.models import init_database, create_tables, Pokemon
 
 from pogom.pgoapi.utilities import get_pos_by_name
 
@@ -42,7 +41,7 @@ if __name__ == '__main__':
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
-    db = init_database(args)
+    db = init_database()
     create_tables()
     
     position = get_pos_by_name(args.location)
@@ -55,27 +54,12 @@ if __name__ == '__main__':
 
     config['ORIGINAL_LATITUDE'] = position[0]
     config['ORIGINAL_LONGITUDE'] = position[1]
-    config['LOCALE'] = args.locale
 
-    if not args.mock:
-        start_locator_thread(args)
-    else:
-        insert_mock_data()
+    start_locator_thread(args)
 
     app = Pogom(__name__)
 
-    if args.cors:
-        CORS(app);
-
     config['ROOT_PATH'] = app.root_path
-    if args.gmaps_key is not None:
-        config['GMAPS_KEY'] = args.gmaps_key
-    else:
-        config['GMAPS_KEY'] = load_credentials(os.path.dirname(os.path.realpath(__file__)))['gmaps_key']
+    config['GMAPS_KEY'] = args.google
 
-    if args.no_server:
-        while not search_thread.isAlive():
-            time.sleep(1)
-        search_thread.join()
-    else:
-        app.run(threaded=True, debug=args.debug, host=args.host, port=args.port)
+    app.run(threaded=True, debug=args.debug, host=args.host, port=args.port)

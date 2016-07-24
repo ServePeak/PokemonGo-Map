@@ -8,7 +8,7 @@ from datetime import datetime
 from s2sphere import *
 
 from . import config
-from .models import Pokemon, Gym, Pokestop
+from .models import Pokemon
 
 
 class Pogom(Flask):
@@ -26,18 +26,12 @@ class Pogom(Flask):
                                lat=config['ORIGINAL_LATITUDE'],
                                lng=config['ORIGINAL_LONGITUDE'],
                                gmaps_key=config['GMAPS_KEY'],
-                               lang=config['LOCALE'])
+                               lang=en)
 
     def raw_data(self):
         d = {}
         if request.args.get('pokemon', 'true') == 'true':
             d['pokemons'] = Pokemon.get_active()
-
-        #if request.args.get('pokestops', 'false') == 'true':
-        #    d['pokestops'] = Pokestop.get_all()
-
-        #if request.args.get('gyms', 'true') == 'true':
-        #    d['gyms'] = Gym.get_all()
 
         return jsonify(d)
 
