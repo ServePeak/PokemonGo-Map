@@ -63,8 +63,10 @@ def tweet():
   for e_new in new['pokemons']:
     if e_new['pokemon_id'] in rares:
       if 'encounter_id' in e_new:
-        location = Geocoder.reverse_geocode(e_new['latitude'], e_new['longitude'])[12]
-        location = str(location).split(',')[0]
+        location = str(Geocoder.reverse_geocode(e_new['latitude'], e_new['longitude'])[0]).split(',')
+        destination = location[0]
+        if len(location) == 5:
+          destination += ", " + location[1]
         time = datetime.datetime.fromtimestamp(e_new['disappear_time']/1000)
         ampm = "AM"
         hour = time.hour
@@ -78,7 +80,7 @@ def tweet():
         elif hour == 0:
           hour = 12
         tweeting = "{} at {} until {}:{}:{} {}. #PokemonGo {}".format( \
-          e_new['pokemon_name'], location, \
+          e_new['pokemon_name'], destination, \
           hour, str(time.minute).zfill(2), str(time.second).zfill(2), ampm, \
           shortener.short(gmap))
         tweet.statuses.update(status=tweeting)
