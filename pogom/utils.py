@@ -10,16 +10,29 @@ import os
 import simplejson as json
 from datetime import datetime, timedelta
 import ConfigParser
+import platform
+import logging
+import shutil
 
 from . import config
 from exceptions import APIKeyException
 
+DEFAULT_THREADS = 1
+
+log=logging.getLogger(__name__)
 
 def parse_unicode(bytestring):
     decoded_string = bytestring.decode(sys.getfilesystemencoding())
     return decoded_string
 
+def verify_config_file_exists(filename):
+    fullpath = os.path.join(os.path.dirname(__file__), filename)
+    if os.path.exists(fullpath) is False:
+        log.info("Could not find " + filename + ", copying default")
+        shutil.copy2(fullpath + '.example', fullpath)
+
 def parse_config(args):
+    verify_config_file_exists('../config/config.ini')
     Config = ConfigParser.ConfigParser()
     Config.read(os.path.join(os.path.dirname(__file__), '../config/config.ini'))
     args.step_limit = int(Config.get('Search', 'Steps'))
@@ -46,12 +59,17 @@ def get_args():
     parser.add_argument('-H', '--host', help='Set web server listening host', default='127.0.0.1')
     parser.add_argument('-P', '--port', type=int, help='Set web server listening port', default=5000)
     parser.add_argument('-ns', '--no-server', help='No-Server Mode. Starts the searcher but not the Webserver.', action='store_true', default=False, dest='no_server')
+    parser.add_argument('-t', '--threads', help='Number of search threads', required=False, type=int, default=DEFAULT_THREADS, dest='num_threads')
     parser.add_argument('-d', '--debug', help='Debug Mode', action='store_true')
     parser.add_argument('-N', '--num', help='Number to differentiate runs', required=True)
     parser.set_defaults(DEBUG=False)
     args = parser.parse_args()
     
+    real_step = args.step_limit
     args = parse_config(args) 
+    if real_step:
+      args.step_limit = real_step
+    
     if (args.username is None or args.location is None or args.step_limit is None):
         parser.print_usage()
         print sys.argv[0] + ': error: arguments -u/--username, -l/--location, -st/--step-limit, -N/--num are required'

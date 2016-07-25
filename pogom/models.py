@@ -3,10 +3,11 @@
 
 import logging
 import os
-from peewee import Model, MySQLDatabase, InsertQuery, IntegerField, CharField, FloatField, BooleanField, DateTimeField
+from peewee import Model, MySQLDatabase, InsertQuery, IntegerField, CharField, DoubleField, BooleanField, DateTimeField, OperationalError
 from datetime import datetime
 from base64 import b64encode
 
+from . import config
 from .utils import get_pokemon_name, get_args
 from .transform import transform_from_wgs_to_gcj
 from .customLog import printPokemon
@@ -26,7 +27,6 @@ def init_database():
         user=args.user, 
         passwd=args.pword, 
         host=args.myhost)
-    log.info(args.db)
     log.info('Connecting to MySQL database on {}.'.format(args.myhost))
     return db
 
@@ -45,15 +45,25 @@ class Pokemon(BaseModel):
     encounter_id = CharField(primary_key=True)
     spawnpoint_id = CharField()
     pokemon_id = IntegerField()
-    latitude = FloatField()
-    longitude = FloatField()
+    latitude = DoubleField()
+    longitude = DoubleField()
     disappear_time = DateTimeField()
 
     @classmethod
-    def get_active(cls):
-        query = (Pokemon
+    def get_active(cls, swLat, swLng, neLat, neLng):
+        if swLat == None or swLng == None or neLat == None or neLng == None:
+            query = (Pokemon
                  .select()
                  .where(Pokemon.disappear_time > datetime.utcnow())
+                 .dicts())
+        else:
+            query = (Pokemon
+                 .select()
+                 .where((Pokemon.disappear_time > datetime.utcnow()) &
+                    (Pokemon.latitude >= swLat) &
+                    (Pokemon.longitude >= swLng) &
+                    (Pokemon.latitude <= neLat) &
+                    (Pokemon.longitude <= neLng))
                  .dicts())
 
         pokemons = []
@@ -63,8 +73,58 @@ class Pokemon(BaseModel):
 
         return pokemons
 
-def parse_map(map_dict):
+    @classmethod
+    def get_active_by_id(cls, ids, swLat, swLng, neLat, neLng):
+        if swLat == None or swLng == None or neLat == None or neLng == None:
+            query = (Pokemon
+                     .select()
+                     .where((Pokemon.pokemon_id << ids) &
+                            (Pokemon.disappear_time > datetime.utcnow()))
+                     .dicts())
+        else:
+            query = (Pokemon
+                     .select()
+                     .where((Pokemon.pokemon_id << ids) &
+                            (Pokemon.disappear_time > datetime.utcnow()) &
+                            (Pokemon.latitude >= swLat) &
+                            (Pokemon.longitude >= swLng) &
+                            (Pokemon.latitude <= neLat) &
+                            (Pokemon.longitude <= neLng))
+                     .dicts())
+
+        pokemons = []
+        for p in query:
+            p['pokemon_name'] = get_pokemon_name(p['pokemon_id'])
+            pokemons.append(p)
+
+        return pokemons
+
+class ScannedLocation(BaseModel):
+    scanned_id = CharField(primary_key=True)
+    latitude = DoubleField()
+    longitude = DoubleField()
+    last_modified = DateTimeField()
+
+    @classmethod
+    def get_recent(cls, swLat, swLng, neLat, neLng):
+        query = (ScannedLocation
+                 .select()
+                 .where((ScannedLocation.last_modified >= (datetime.utcnow() - timedelta(minutes=15))) &
+                    (ScannedLocation.latitude >= swLat) &
+                    (ScannedLocation.longitude >= swLng) &
+                    (ScannedLocation.latitude <= neLat) &
+                    (ScannedLocation.longitude <= neLng))
+                 .dicts())
+
+        scans = []
+        for s in query:
+            scans.append(s)
+
+        return scans
+
+def parse_map(map_dict, iteration_num, step, step_location):
     pokemons = {}
+    scanned = {}
 
     cells = map_dict['responses']['GET_MAP_OBJECTS']['map_cells']
     for cell in cells:
@@ -82,10 +142,24 @@ def parse_map(map_dict):
                 'disappear_time': d_t
             }
 
+    pokemons_upserted = 0
+
 
     if pokemons:
-        log.info("Upserting {} pokemon".format(len(pokemons)))
+        pokemons_upserted = len(pokemons)
+        log.debug("Upserting {} pokemon".format(len(pokemons)))
         bulk_upsert(Pokemon, pokemons)
+
+    log.info("Upserted {} pokemon".format(pokemons_upserted))
+
+    scanned[0] = {
+        'scanned_id': str(step_location[0])+','+str(step_location[1]),
+        'latitude': step_location[0],
+        'longitude': step_location[1],
+        'last_modified': datetime.utcnow(),
+    }
+
+    bulk_upsert(ScannedLocation, scanned)
 
 def bulk_upsert(cls, data):
     num_rows = len(data.values())
@@ -99,12 +173,12 @@ def bulk_upsert(cls, data):
         except OperationalError as e:
             log.warning("%s... Retrying", e)
             continue
-        if not db.is_closed():
-          db.close()
-            
+        finally:
+            db.close()
+
         i+=step
 
-def create_tables():
+def create_tables(db):
     db.connect()
-    db.create_tables([Pokemon], safe=True)
+    db.create_tables([Pokemon, ScannedLocation], safe=True)
     db.close()

@@ -11,7 +11,7 @@ from threading import Thread
 from pogom import config
 from pogom.app import Pogom
 from pogom.utils import get_args
-from pogom.search import search_loop
+from pogom.search import search_loop, create_search_threads
 from pogom.models import init_database, create_tables, Pokemon
 
 from pogom.pgoapi.utilities import get_pos_by_name
@@ -35,15 +35,15 @@ if __name__ == '__main__':
     logging.getLogger("pogom.pgoapi.pgoapi").setLevel(logging.WARNING)
     logging.getLogger("pogom.pgoapi.rpc_api").setLevel(logging.INFO)
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    
+
     if args.debug:
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
     db = init_database()
-    create_tables()
-    
+    create_tables(db)
+
     position = get_pos_by_name(args.location)
     if not any(position):
         log.error('Could not get a position by name, aborting.')
@@ -55,6 +55,7 @@ if __name__ == '__main__':
     config['ORIGINAL_LATITUDE'] = position[0]
     config['ORIGINAL_LONGITUDE'] = position[1]
 
+    create_search_threads(args.num_threads)
     start_locator_thread(args)
 
     app = Pogom(__name__)
