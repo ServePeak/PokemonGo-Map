@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import calendar
-from flask import Flask, jsonify, render_template, request
+import simplejson as json
+from flask import Flask, render_template, request
 from flask.json import JSONEncoder
 from datetime import datetime
 from s2sphere import *
@@ -33,14 +34,14 @@ class Pogom(Flask):
         if request.args.get('pokemon', 'true') == 'true':
             d['pokemons'] = Pokemon.get_active()
 
-        return jsonify(d)
+        return json.dumps(d, cls=self.json_encoder)
 
     def loc(self):
         d = {}
         d['lat']=config['ORIGINAL_LATITUDE']
         d['lng']=config['ORIGINAL_LONGITUDE']
 
-        return jsonify(d)
+        return json.dumps(d, cls=self.json_encoder)
 
     def next_loc(self):
         lat = request.args.get('lat', type=float)

@@ -99,8 +99,8 @@ def bulk_upsert(cls, data):
         except OperationalError as e:
             log.warning("%s... Retrying", e)
             continue
-        finally:
-            db.close()
+        if not db.is_closed():
+          db.close()
             
         i+=step
 

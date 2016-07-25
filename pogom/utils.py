@@ -7,7 +7,7 @@ import argparse
 import re
 import uuid
 import os
-import json
+import simplejson as json
 from datetime import datetime, timedelta
 import ConfigParser
 
@@ -45,6 +45,7 @@ def get_args():
     parser.add_argument('-dc','--display-in-console',help='Display Found Pokemon in Console',action='store_true',default=False)
     parser.add_argument('-H', '--host', help='Set web server listening host', default='127.0.0.1')
     parser.add_argument('-P', '--port', type=int, help='Set web server listening port', default=5000)
+    parser.add_argument('-ns', '--no-server', help='No-Server Mode. Starts the searcher but not the Webserver.', action='store_true', default=False, dest='no_server')
     parser.add_argument('-d', '--debug', help='Debug Mode', action='store_true')
     parser.add_argument('-N', '--num', help='Number to differentiate runs', required=True)
     parser.set_defaults(DEBUG=False)

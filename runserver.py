@@ -62,4 +62,9 @@ if __name__ == '__main__':
     config['ROOT_PATH'] = app.root_path
     config['GMAPS_KEY'] = args.google
 
-    app.run(threaded=True, debug=args.debug, host=args.host, port=args.port)
+    if args.no_server:
+        while not search_thread.isAlive():
+            time.sleep(1)
+        search_thread.join()
+    else:
+        app.run(threaded=True, debug=args.debug, host=args.host, port=args.port)

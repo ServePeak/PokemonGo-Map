@@ -6,7 +6,7 @@ import time as t
 import datetime
 import copy
 import os
-import json
+import simplejson as json
 import urllib
 import ConfigParser
 
