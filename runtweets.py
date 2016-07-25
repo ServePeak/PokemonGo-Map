@@ -8,6 +8,7 @@ import copy
 import os
 import json
 import urllib
+import ConfigParser
 
 # pokemon to find
 rares = []
@@ -18,26 +19,22 @@ def get_args():
   return parser.parse_args()
 
 def load_credentials():
-  with open('credentials.json') as file:
-    creds = json.load(file)
-    if not creds['gmaps_key']:
-      raise APIKeyException("No Google API key entered in credentials.json file!")
-    if not creds['taccess_token']:
-      raise APIKeyException("No Twitter access token entered in credentials.json file!")
-    if not creds['taccess_token_secret']:
-      raise APIKeyException("No Twitter access token secret entered in credentials.json file!")
-    if not creds['tconsumer_key']:
-      raise APIKeyException("No Twitter consumer key entered in credentials.json file!")
-    if not creds['tconsumer_secret']:
-      raise APIKeyException("No Twitter consumer secret entered in credentials.json file!")
+  Config = ConfigParser.ConfigParser()
+  Config.read(os.path.join(os.path.dirname(__file__), './config/config.ini'))
+  creds = []
+  creds.append(Config.get('API_Keys', 'google'))
+  creds.append(Config.get('API_Keys', 'twitter_access_token'))
+  creds.append(Config.get('API_Keys', 'twitter_access_secret'))
+  creds.append(Config.get('API_Keys', 'twitter_consumer_key'))
+  creds.append(Config.get('API_Keys', 'twitter_consumer_secret'))
   return creds
 
 def tweet():
   args = get_args()
   creds = load_credentials()
   
-  shortener = Shortener('Google', api_key=creds['gmaps_key'])
-  tweet = Twitter(auth=OAuth(creds['taccess_token'], creds['taccess_token_secret'], creds['tconsumer_key'], creds['tconsumer_secret']))
+  shortener = Shortener('Google', api_key=creds[0])
+  tweet = Twitter(auth=OAuth(creds[1], creds[2], creds[3], creds[4]))
         
   url = "http://127.0.0.1:" + str(args.port) + "/raw_data"
   response = urllib.urlopen(url)
@@ -101,6 +98,11 @@ if __name__ == "__main__":
     rares = [x+1 for x in range(151)]
 
   while True:
-    tweet()
-    print("[{}] Tweeting complete. Restarting in 10 seconds.".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-    t.sleep(10)
+    try:
+      tweet()
+      print("[{}] Tweeting complete. Restarting in 10 seconds.".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+      t.sleep(10)
+    except Exception as e:
+      print("[{}] Crashed. Retrying in 10 seconds.".format(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+      t.sleep(10)
+      tweet()

@@ -65,8 +65,6 @@ class Pokemon(BaseModel):
 
 def parse_map(map_dict):
     pokemons = {}
-    pokestops = {}
-    gyms = {}
 
     cells = map_dict['responses']['GET_MAP_OBJECTS']['map_cells']
     for cell in cells:
@@ -96,8 +94,14 @@ def bulk_upsert(cls, data):
 
     while i < num_rows:
         log.debug("Inserting items {} to {}".format(i, min(i+step, num_rows)))
-        InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
-        db.close()
+        try:
+            InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
+        except OperationalError as e:
+            log.warning("%s... Retrying", e)
+            continue
+        finally:
+            db.close()
+            
         i+=step
 
 def create_tables():

@@ -31,10 +31,6 @@ def parse_config(args):
     args.pword = Config.get('MySQL', 'Password')
     args.myhost = Config.get('MySQL', 'Host')
     args.google = Config.get('API_Keys', 'google')
-    args.twit1 = Config.get('API_Keys', 'twitter_access_token')
-    args.twit2 = Config.get('API_Keys', 'twitter_access_secret')
-    args.twit3 = Config.get('API_Keys', 'twitter_consumer_key')
-    args.twit4 = Config.get('API_Keys', 'twitter_consumer_secret')
     return args
 
 def get_args():
