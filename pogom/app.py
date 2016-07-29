@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import os
 import calendar
 import logging
 import simplejson as json
@@ -14,9 +15,14 @@ from pogom.utils import get_args
 from . import config
 from .models import Pokemon, ScannedLocation
 
+app = Flask(__name__)
 log = logging.getLogger(__name__)
 compress = Compress()
 
+rares = []
+with open(os.path.join(os.path.dirname(__file__),'../rares.txt'), 'r') as file:
+  rares = [x for x in file.read().split()]
+  
 class Pogom(Flask):
     def __init__(self, import_name, **kwargs):
         super(Pogom, self).__init__(import_name, **kwargs)
@@ -24,6 +30,7 @@ class Pogom(Flask):
         self.json_encoder = CustomJSONEncoder
         self.route("/", methods=['GET'])(self.fullmap)
         self.route("/raw_data", methods=['GET'])(self.raw_data)
+        self.route("/rare", methods=['GET'])(self.rare_data)
         self.route("/loc", methods=['GET'])(self.loc)
         self.route("/next_loc", methods=['POST'])(self.next_loc)
         self.route("/mobile", methods=['GET'])(self.list_pokemon)
@@ -49,6 +56,15 @@ class Pogom(Flask):
             else:
                 d['pokemons'] = Pokemon.get_active(swLat, swLng, neLat, neLng)
 
+        return json.dumps(d, cls=self.json_encoder)
+        
+    def rare_data(self):
+        d = {}
+        swLat = request.args.get('swLat')
+        swLng = request.args.get('swLng')
+        neLat = request.args.get('neLat')
+        neLng = request.args.get('neLng')
+        d['pokemons'] = Pokemon.get_active_by_id(rares, swLat, swLng, neLat, neLng)
         return json.dumps(d, cls=self.json_encoder)
 
     def loc(self):
