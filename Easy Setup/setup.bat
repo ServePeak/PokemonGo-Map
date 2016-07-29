@@ -38,5 +38,10 @@ popd
 cd ..
 %PATH2%\Scripts\pip install -r requirements.txt
 %PATH2%\Scripts\pip install -r requirements.txt --upgrade
-echo All done!
+echo.
+echo.
+echo.
+echo.
+echo All done! Add your API Keys and MySQL info in /config/config.ini
+echo.
 pause

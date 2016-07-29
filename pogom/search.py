@@ -16,7 +16,7 @@ from . import config
 from .models import parse_map
 
 args = get_args()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [' + args.num + '] [%(module)9s] [%(levelname)5s]%(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)2s][%(module)9s] [%(levelname)5s] %(message)s')
 log = logging.getLogger(__name__)
 
 TIMESTAMP = '\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'
@@ -108,7 +108,7 @@ def login(args, position):
 def create_search_threads(num) :
     search_threads = []
     for i in range(num):
-        t = Thread(target=search_thread, name='search_thread {}'.format(i), args=( search_queue,))
+        t = Thread(target=search_thread, name='{}'.format(i), args=( search_queue,))
         t.daemon = True
         t.start()
         search_threads.append(t)
@@ -128,6 +128,7 @@ def search_thread(args):
                         parse_map(response_dict, i, step, step_location)
                     except KeyError:
                         log.error('Scan step {:d} failed. Response dictionary key error.'.format(step))
+                        time.sleep(2)
                         failed_consecutive += 1
                         if(failed_consecutive >= config['REQ_MAX_FAILED']):
                             log.error('Niantic servers under heavy load. Waiting before trying again')
@@ -136,6 +137,8 @@ def search_thread(args):
                         response_dict = {}
             else:
                 log.info('Map Download failed. Trying again.')
+                failed_consecutive += 1
+                time.sleep(60) 
 
         time.sleep(config['REQ_SLEEP'])
 

@@ -3,7 +3,10 @@
 
 import logging
 import os
-from peewee import Model, MySQLDatabase, InsertQuery, IntegerField, CharField, DoubleField, BooleanField, DateTimeField, OperationalError
+from peewee import Model, SqliteDatabase, InsertQuery, IntegerField, CharField, DoubleField, BooleanField, DateTimeField, OperationalError, InternalError, create_model_tables
+from playhouse.flask_utils import FlaskDB
+from playhouse.pool import PooledMySQLDatabase
+from playhouse.shortcuts import RetryOperationalError
 from datetime import datetime
 from base64 import b64encode
 
@@ -14,25 +17,27 @@ from .customLog import printPokemon
 
 log = logging.getLogger(__name__)
 
-db = None
+flaskDb = FlaskDB()
 
-def init_database(): 
+class MyRetryDB(RetryOperationalError, PooledMySQLDatabase):
+    pass
+
+def init_database(app): 
     args = get_args()
-    global db
-    if db is not None:
-        return db
 
-    db = MySQLDatabase(
+    db = MyRetryDB(
         args.db, 
         user=args.user, 
         passwd=args.pword, 
-        host=args.myhost)
+        host=args.myhost,
+        max_connections=args.dbmax,
+        stale_timeout=300)
     log.info('Connecting to MySQL database on {}.'.format(args.myhost))
+    app.config['DATABASE'] = db
+    flaskDb.init_app(app)
     return db
 
-class BaseModel(Model):
-    class Meta:
-        database = init_database()
+class BaseModel(flaskDb.Model):
 
     @classmethod
     def get_all(cls):
@@ -43,11 +48,14 @@ class Pokemon(BaseModel):
     # We are base64 encoding the ids delivered by the api
     # because they are too big for sqlite to handle
     encounter_id = CharField(primary_key=True)
-    spawnpoint_id = CharField()
-    pokemon_id = IntegerField()
+    spawnpoint_id = CharField(index=True)
+    pokemon_id = IntegerField(index=True)
     latitude = DoubleField()
     longitude = DoubleField()
-    disappear_time = DateTimeField()
+    disappear_time = DateTimeField(index=True)
+    
+    class Meta:
+        indexes = ((('latitude', 'longitude'), False),)
 
     @classmethod
     def get_active(cls, swLat, swLng, neLat, neLng):
@@ -103,7 +111,10 @@ class ScannedLocation(BaseModel):
     scanned_id = CharField(primary_key=True)
     latitude = DoubleField()
     longitude = DoubleField()
-    last_modified = DateTimeField()
+    last_modified = DateTimeField(index=True)
+    
+    class Meta:
+        indexes = ((('latitude', 'longitude'), False),)
 
     @classmethod
     def get_recent(cls, swLat, swLng, neLat, neLng):
@@ -165,18 +176,20 @@ def bulk_upsert(cls, data):
     num_rows = len(data.values())
     i = 0
     step = 120
+    
+    flaskDb.connect_db()
 
     while i < num_rows:
         log.debug("Inserting items {} to {}".format(i, min(i+step, num_rows)))
         try:
             InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
-        except OperationalError as e:
+        except (OperationalError, InternalError) as e:
             log.warning("%s... Retrying", e)
             continue
-        finally:
-            db.close()
 
         i+=step
+        
+    flaskDb.close_db(None)
 
 def create_tables(db):
     db.connect()

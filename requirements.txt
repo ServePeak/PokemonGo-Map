@@ -13,4 +13,9 @@ requests==2.10.0
 s2sphere==0.2.4
 gpsoauth==0.3.0
 protobuf-to-dict==0.1.0
-flask-cors==2.1.2
+twitter==1.17.1
+pyshorteners==0.6.0
+pygeocoder==1.2.5
+PyMySQL==0.7.5
+simplejson==3.8.2
+Flask-Compress==1.3.0

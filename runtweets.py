@@ -36,7 +36,7 @@ def tweet():
   shortener = Shortener('Google', api_key=creds[0])
   tweet = Twitter(auth=OAuth(creds[1], creds[2], creds[3], creds[4]))
         
-  url = "http://127.0.0.1:" + str(args.port) + "/raw_data"
+  url = "http://127.0.0.1:" + str(args.port) + "/rare"
   response = urllib.urlopen(url)
   dump = json.loads(response.read())
   new = copy.deepcopy(dump)
@@ -64,11 +64,12 @@ def tweet():
         destination = location[0]
         if len(location) == 5:
           destination += ", " + location[1]
+        destination += ", " + location[len(location)-2].split()[1]
         time = datetime.datetime.fromtimestamp(e_new['disappear_time']/1000)
         ampm = "AM"
         hour = time.hour
-        gmap = 'https://www.google.com/maps/dir/Current+Location/' \
-                + str(e_new['latitude']) + ',' + str(e_new['longitude'])
+        gmap = 'https://www.google.com/maps/place/' \
+                + str(e_new['latitude']) + ',' + str(e_new['longitude']) + '/'
         if hour > 12:
           hour -= 12
           ampm = "PM"

@@ -16,7 +16,8 @@ from pogom.models import init_database, create_tables, Pokemon
 
 from pogom.pgoapi.utilities import get_pos_by_name
 
-log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(threadName)2s][%(module)14s] [%(levelname)7s] %(message)s')
+log = logging.getLogger()
 
 search_thread = Thread()
 
@@ -28,7 +29,6 @@ def start_locator_thread(args):
 
 if __name__ == '__main__':
     args = get_args()
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [' + args.num + '] [%(module)9s] [%(levelname)5s]%(message)s')
 
     logging.getLogger("peewee").setLevel(logging.INFO)
     logging.getLogger("requests").setLevel(logging.WARNING)
@@ -40,9 +40,6 @@ if __name__ == '__main__':
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
-
-    db = init_database()
-    create_tables(db)
 
     position = get_pos_by_name(args.location)
     if not any(position):
@@ -59,6 +56,8 @@ if __name__ == '__main__':
     start_locator_thread(args)
 
     app = Pogom(__name__)
+    db = init_database(app)
+    create_tables(db)
 
     config['ROOT_PATH'] = app.root_path
     config['GMAPS_KEY'] = args.google

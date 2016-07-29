@@ -60,8 +60,8 @@ def get_args():
     parser.add_argument('-P', '--port', type=int, help='Set web server listening port', default=5000)
     parser.add_argument('-ns', '--no-server', help='No-Server Mode. Starts the searcher but not the Webserver.', action='store_true', default=False, dest='no_server')
     parser.add_argument('-t', '--threads', help='Number of search threads', required=False, type=int, default=DEFAULT_THREADS, dest='num_threads')
+    parser.add_argument('-dm', '--dbmax', help='Max connections for the database', type=int, default=5)
     parser.add_argument('-d', '--debug', help='Debug Mode', action='store_true')
-    parser.add_argument('-N', '--num', help='Number to differentiate runs', required=True)
     parser.set_defaults(DEBUG=False)
     args = parser.parse_args()
     
