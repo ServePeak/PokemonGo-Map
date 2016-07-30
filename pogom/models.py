@@ -3,28 +3,30 @@
 
 import logging
 import os
+import time
 from peewee import Model, SqliteDatabase, InsertQuery, IntegerField, CharField, DoubleField, BooleanField, DateTimeField, OperationalError, InternalError, create_model_tables
 from playhouse.flask_utils import FlaskDB
 from playhouse.pool import PooledMySQLDatabase
 from playhouse.shortcuts import RetryOperationalError
-from datetime import datetime
+from datetime import datetime, timedelta
 from base64 import b64encode
 
 from . import config
-from .utils import get_pokemon_name, get_args
+from .utils import get_pokemon_name, get_pokemon_rarity, get_pokemon_types, get_args, send_to_webhook
 from .transform import transform_from_wgs_to_gcj
 from .customLog import printPokemon
 
 log = logging.getLogger(__name__)
 
+args = get_args()
 flaskDb = FlaskDB()
+
 
 class MyRetryDB(RetryOperationalError, PooledMySQLDatabase):
     pass
 
-def init_database(app): 
-    args = get_args()
 
+def init_database(app):
     db = MyRetryDB(
         args.db, 
         user=args.user, 
@@ -33,9 +35,11 @@ def init_database(app):
         max_connections=args.dbmax,
         stale_timeout=300)
     log.info('Connecting to MySQL database on {}.'.format(args.myhost))
+
     app.config['DATABASE'] = db
     flaskDb.init_app(app)
     return db
+
 
 class BaseModel(flaskDb.Model):
 
@@ -47,43 +51,45 @@ class BaseModel(flaskDb.Model):
 class Pokemon(BaseModel):
     # We are base64 encoding the ids delivered by the api
     # because they are too big for sqlite to handle
-    encounter_id = CharField(primary_key=True)
+    encounter_id = CharField(primary_key=True, max_length=50)
     spawnpoint_id = CharField(index=True)
     pokemon_id = IntegerField(index=True)
     latitude = DoubleField()
     longitude = DoubleField()
     disappear_time = DateTimeField(index=True)
-    
+
     class Meta:
         indexes = ((('latitude', 'longitude'), False),)
 
     @classmethod
     def get_active(cls, swLat, swLng, neLat, neLng):
-        if swLat == None or swLng == None or neLat == None or neLng == None:
+        if swLat is None or swLng is None or neLat is None or neLng is None:
             query = (Pokemon
-                 .select()
-                 .where(Pokemon.disappear_time > datetime.utcnow())
-                 .dicts())
+                     .select()
+                     .where(Pokemon.disappear_time > datetime.utcnow())
+                     .dicts())
         else:
             query = (Pokemon
-                 .select()
-                 .where((Pokemon.disappear_time > datetime.utcnow()) &
-                    (Pokemon.latitude >= swLat) &
-                    (Pokemon.longitude >= swLng) &
-                    (Pokemon.latitude <= neLat) &
-                    (Pokemon.longitude <= neLng))
-                 .dicts())
+                     .select()
+                     .where((Pokemon.disappear_time > datetime.utcnow()) &
+                            (Pokemon.latitude >= swLat) &
+                            (Pokemon.longitude >= swLng) &
+                            (Pokemon.latitude <= neLat) &
+                            (Pokemon.longitude <= neLng))
+                     .dicts())
 
         pokemons = []
         for p in query:
             p['pokemon_name'] = get_pokemon_name(p['pokemon_id'])
+            p['pokemon_rarity'] = get_pokemon_rarity(p['pokemon_id'])
+            p['pokemon_types'] = get_pokemon_types(p['pokemon_id'])
             pokemons.append(p)
 
         return pokemons
 
     @classmethod
     def get_active_by_id(cls, ids, swLat, swLng, neLat, neLng):
-        if swLat == None or swLng == None or neLat == None or neLng == None:
+        if swLat is None or swLng is None or neLat is None or neLng is None:
             query = (Pokemon
                      .select()
                      .where((Pokemon.pokemon_id << ids) &
@@ -103,16 +109,18 @@ class Pokemon(BaseModel):
         pokemons = []
         for p in query:
             p['pokemon_name'] = get_pokemon_name(p['pokemon_id'])
+            p['pokemon_rarity'] = get_pokemon_rarity(p['pokemon_id'])
+            p['pokemon_types'] = get_pokemon_types(p['pokemon_id'])
             pokemons.append(p)
 
         return pokemons
 
 class ScannedLocation(BaseModel):
-    scanned_id = CharField(primary_key=True)
+    scanned_id = CharField(primary_key=True, max_length=50)
     latitude = DoubleField()
     longitude = DoubleField()
     last_modified = DateTimeField(index=True)
-    
+
     class Meta:
         indexes = ((('latitude', 'longitude'), False),)
 
@@ -120,11 +128,12 @@ class ScannedLocation(BaseModel):
     def get_recent(cls, swLat, swLng, neLat, neLng):
         query = (ScannedLocation
                  .select()
-                 .where((ScannedLocation.last_modified >= (datetime.utcnow() - timedelta(minutes=15))) &
-                    (ScannedLocation.latitude >= swLat) &
-                    (ScannedLocation.longitude >= swLng) &
-                    (ScannedLocation.latitude <= neLat) &
-                    (ScannedLocation.longitude <= neLng))
+                 .where((ScannedLocation.last_modified >=
+                        (datetime.utcnow() - timedelta(minutes=15))) &
+                        (ScannedLocation.latitude >= swLat) &
+                        (ScannedLocation.longitude >= swLng) &
+                        (ScannedLocation.latitude <= neLat) &
+                        (ScannedLocation.longitude <= neLng))
                  .dicts())
 
         scans = []
@@ -132,6 +141,7 @@ class ScannedLocation(BaseModel):
             scans.append(s)
 
         return scans
+
 
 def parse_map(map_dict, iteration_num, step, step_location):
     pokemons = {}
@@ -153,6 +163,17 @@ def parse_map(map_dict, iteration_num, step, step_location):
                 'disappear_time': d_t
             }
 
+            webhook_data = {
+                'encounter_id': b64encode(str(p['encounter_id'])),
+                'spawnpoint_id': p['spawnpoint_id'],
+                'pokemon_id': p['pokemon_data']['pokemon_id'],
+                'latitude': p['latitude'],
+                'longitude': p['longitude'],
+                'disappear_time': time.mktime(d_t.timetuple())
+            }
+
+            send_to_webhook('pokemon', webhook_data)
+
     pokemons_upserted = 0
 
 
@@ -172,11 +193,13 @@ def parse_map(map_dict, iteration_num, step, step_location):
 
     bulk_upsert(ScannedLocation, scanned)
 
+
+
 def bulk_upsert(cls, data):
     num_rows = len(data.values())
     i = 0
     step = 120
-    
+
     flaskDb.connect_db()
 
     while i < num_rows:
@@ -188,10 +211,16 @@ def bulk_upsert(cls, data):
             continue
 
         i+=step
-        
+
     flaskDb.close_db(None)
+
 
 def create_tables(db):
     db.connect()
     db.create_tables([Pokemon, ScannedLocation], safe=True)
+    db.close()
+
+def drop_tables(db):
+    db.connect()
+    db.drop_tables([Pokemon, Pokestop, Gym, ScannedLocation], safe=True)
     db.close()

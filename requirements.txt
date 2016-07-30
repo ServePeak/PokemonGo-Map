@@ -18,4 +18,4 @@ pyshorteners==0.6.0
 pygeocoder==1.2.5
 PyMySQL==0.7.5
 simplejson==3.8.2
-Flask-Compress==1.3.0
+flask-compress==1.3.0
