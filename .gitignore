@@ -3,6 +3,11 @@
 *.db
 *.db-journal
 *.sass-cache
+*.py.bak
+*.bat
+rares.txt
+data.json
+null
 config/config.ini
 config/credentials.json
 static/dist/
