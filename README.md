@@ -6,7 +6,7 @@ Based off [AHAAAAAAA's PokemonGo Map](https://github.com/AHAAAAAAA/PokemonGo-Map
 
 #[Twitter Example] (https://twitter.com/nycpokespawn)
 
-![Map](https://raw.githubusercontent.com/AHAAAAAAA/PokemonGo-Map/master/static/cover.png)
+![Map](https://raw.githubusercontent.com/ServePeak/PokemonGo-Twitter/master/static/cover.png)
 
 
 ## How to setup
