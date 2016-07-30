@@ -1,0 +1,22 @@
+#Provide Pokemon Go Credentials here. This section must be filled out!
+
+[Search]
+Steps: 10
+Thread_delay: 60
+
+[Web]
+Host: 127.0.0.1
+Port: 5000
+
+[MySQL]
+Database: db
+Username: root
+Password: 
+Host: localhost
+
+[API_Keys]
+google: 
+twitter_access_token: 
+twitter_access_secret: 
+twitter_consumer_key: 
+twitter_consumer_secret: 
