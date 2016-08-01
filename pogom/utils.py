@@ -37,7 +37,8 @@ def parse_config(args):
     Config = ConfigParser.ConfigParser()
     Config.read(os.path.join(os.path.dirname(__file__), '../config/config.ini'))
     args.step_limit = int(Config.get('Search', 'Steps'))
-    args.thread_delay = int(Config.get('Search', 'Thread_delay'))
+    args.thread_delay = float(Config.get('Search', 'Thread_delay'))
+    args.scan_delay = float(Config.get('Search', 'Scan_delay'))
     args.host = Config.get('Web', 'Host') 
     args.port = int(Config.get('Web', 'Port'))
     args.db = Config.get('MySQL', 'Database')
@@ -50,19 +51,19 @@ def parse_config(args):
 def get_args():
     # fuck PEP8
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--auth-service', type=str.lower,
-                        help='Auth Service', default='ptc')
-    parser.add_argument('-u', '--username', help='Username')
-    parser.add_argument('-p', '--password', help='Password')
+    parser.add_argument('-a', '--auth-service', type=str.lower, action='append',
+                        help='Auth Service')
+    parser.add_argument('-u', '--username', action='append', help='Username')
+    parser.add_argument('-p', '--password', action='append', help='Password')
     parser.add_argument('-l', '--location', type=parse_unicode,
                         help='Location, can be an address or coordinates')
     parser.add_argument('-st', '--step-limit', help='Steps', type=int)
     parser.add_argument('-sd', '--scan-delay',
                         help='Time delay between requests in scan threads',
-                        type=float, default=0.8)
+                        type=float)
     parser.add_argument('-td', '--thread-delay',
                         help='Time delay between each scan thread loop',
-                        type=float, default=20)
+                        type=float)
     parser.add_argument('-ld', '--login-delay',
                         help='Time delay between each login attempt',
                         type=float, default=5)
@@ -92,23 +93,53 @@ def get_args():
     args = parser.parse_args()
 
     real_step = args.step_limit
-    real_delay = args.thread_delay
+    real_thread = args.thread_delay
+    real_scan = args.scan_delay
     
     args = parse_config(args) 
     
-    if real_delay:
-      args.thread_delay = real_delay
+    if real_thread:
+      args.thread_delay = real_thread
       
     if real_step:
       args.step_limit = real_step
+      
+    if real_scan:
+      args.scan_delay = real_scan
 
     if (args.username is None or args.location is None or args.step_limit is None):
         parser.print_usage()
         print sys.argv[0] + ': error: arguments -u/--username, -l/--location, -st/--step-limit, -N/--num are required'
         sys.exit(1);
+        
+    if args.auth_service is None:
+        args.auth_service = ['ptc']
 
     if args.password is None:
         args.password = getpass.getpass()
+    
+    num_username = len(args.username)
+    
+    # If there are multiple usernames, then we either need one passwords that we use for all,
+    # or equal amount so that they match 1:1. Same for authentication services.
+    if num_username > 1:
+        num_passwd = len(args.password)
+        if (num_passwd == 1):
+            log.debug('More than one username and one password given. Using same password for all accounts.')
+            args.password = args.password * num_username
+        elif (num_passwd > 1 and num_username != num_passwd):
+            print sys.argv[0] + ': error: number of usernames ({}) does not match the number of passwords ({})' \
+                                .format(num_username, num_passwd)
+            sys.exit(1);
+
+        num_auth = len(args.auth_service)
+        if (num_auth == 1):
+            log.debug('More than one username and one auth service given. Using same auth service for all accounts.')
+            args.auth_service = args.auth_service * num_username
+        if (num_auth > 1 and num_username != num_auth):
+            print sys.argv[0] + ': error: number of usernames ({}) does not match the number of auth providers ({})' \
+                                .format(num_username, num_auth)
+            sys.exit(1);
 
     return args
 
