@@ -12,6 +12,7 @@ import ConfigParser
 
 # pokemon to find
 rares = []
+data = [0] * 151
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -83,11 +84,15 @@ def tweet():
           shortener.short(gmap))
         tweet.statuses.update(status=tweeting)
         print tweeting
+        data[e_new['pokemon_id']-1] += 1
         # Google api timeout
         t.sleep(0.5)
     
   with open('data.json', 'w') as outfile:
     json.dump(dump, outfile)
+  with open('data.txt', 'w') as outfile:
+    for item in data:
+      print>>outfile, item
     
 if __name__ == "__main__":
   # Read list of rares, if not add all kanto pokemon id
@@ -97,6 +102,10 @@ if __name__ == "__main__":
   else:
     print("rares.txt not found, adding all pokemon instead.")
     rares = [x+1 for x in range(151)]
+    
+  if os.path.isfile('data.txt'):
+    with open('data.txt', 'r') as file:
+      data = [int(x) for x in file.read().split()]
 
   while True:
     try:
