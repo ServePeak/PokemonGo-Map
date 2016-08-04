@@ -33,6 +33,35 @@ class Pogom(Flask):
         self.route("/loc", methods=['GET'])(self.loc)
         self.route("/next_loc", methods=['POST'])(self.next_loc)
         self.route("/mobile", methods=['GET'])(self.list_pokemon)
+        self.route("/search_control", methods=['GET'])(self.get_search_control)
+        self.route("/search_control", methods=['POST'])(self.post_search_control)
+
+    def set_search_control(self, control):
+        self.search_control = control
+
+    def set_location_queue(self, queue):
+        self.location_queue = queue
+
+    def set_current_location(self, location):
+        self.current_location = location
+
+    def get_search_control(self):
+        return jsonify({'status': not self.search_control.is_set()})
+
+    def post_search_control(self):
+        args = get_args()
+        if not args.search_control:
+            return 'Search control is disabled', 403
+        action = request.args.get('action','none')
+        if action == 'on':
+            self.search_control.clear()
+            log.info('Search thread resumed')
+        elif action == 'off':
+            self.search_control.set()
+            log.info('Search thread paused')
+        else:
+            return jsonify({'message':'invalid use of api'})
+        return self.get_search_control()
 
     def fullmap(self):
         args = get_args()
@@ -70,8 +99,8 @@ class Pogom(Flask):
 
     def loc(self):
         d = {}
-        d['lat'] = config['ORIGINAL_LATITUDE']
-        d['lng'] = config['ORIGINAL_LONGITUDE']
+        d['lat'] = self.current_location[0]
+        d['lng'] = self.current_location[1]
 
         return json.dumps(d, cls=self.json_encoder)
 
@@ -79,11 +108,11 @@ class Pogom(Flask):
         lat = request.args.get('lat', type=float)
         lon = request.args.get('lon', type=float)
         if not (lat and lon):
-            log.warning('Invalid next location: %s,%s' % (lat, lon))
+            log.warning('Invalid next location: %s,%s', lat, lon)
             return 'bad parameters', 400
         else:
-            config['NEXT_LOCATION'] = {'lat': lat, 'lon': lon}
-            log.info('Changing next location: %s,%s' % (lat, lon))
+            self.location_queue.put((lat, lon, 0))
+            log.info('Changing next location: %s,%s', lat, lon)
             return 'ok'
 
     def list_pokemon(self):
@@ -92,8 +121,8 @@ class Pogom(Flask):
         pokemon_list = []
 
         # Allow client to specify location
-        lat = request.args.get('lat', config['ORIGINAL_LATITUDE'], type=float)
-        lon = request.args.get('lon', config['ORIGINAL_LONGITUDE'], type=float)
+        lat = request.args.get('lat', self.current_location[0], type=float)
+        lon = request.args.get('lon', self.current_location[1], type=float)
         origin_point = LatLng.from_degrees(lat, lon)
 
         for pokemon in Pokemon.get_active(None, None, None, None):

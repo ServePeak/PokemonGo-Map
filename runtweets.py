@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from twitter import *
 from pyshorteners import Shortener
 from pygeocoder import Geocoder
@@ -12,7 +15,7 @@ import ConfigParser
 
 # pokemon to find
 rares = []
-data = [0] * 151
+idToPokemon = {}
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -45,8 +48,8 @@ def tweet():
     'pokemons': []
   }
   
-  if os.path.isfile('data.json'):
-    with open('data.json') as data_file:
+  if os.path.isfile(os.path.join(os.path.dirname(__file__), './data.json')):
+    with open(os.path.join(os.path.dirname(__file__), './data.json')) as data_file:
       old = json.load(data_file)
 
   # Deletes encounter id for next step
@@ -62,50 +65,36 @@ def tweet():
     if e_new['pokemon_id'] in rares:
       if 'encounter_id' in e_new:
         location = str(Geocoder.reverse_geocode(e_new['latitude'], e_new['longitude'])[0]).split(',')
-        destination = location[0]
-        if len(location) == 5:
-          destination += ", " + location[1]
-        destination += ", " + location[len(location)-2].split()[1]
+        destination = location[0] + ", " + location[1].split()[0]
         time = datetime.datetime.fromtimestamp(e_new['disappear_time']/1000)
-        ampm = "AM"
-        hour = time.hour
-        gmap = 'https://www.google.com/maps/place/' \
+        hour = time.hour + 6
+        gmap = 'https://www.google.fr/maps/place/' \
                 + str(e_new['latitude']) + ',' + str(e_new['longitude']) + '/'
-        if hour > 12:
-          hour -= 12
-          ampm = "PM"
-        elif hour == 12:
-          ampm = "PM"
-        elif hour == 0:
-          hour = 12
-        tweeting = "{} at {} until {}:{}:{} {}. #PokemonGo {}".format( \
-          e_new['pokemon_name'], destination, \
-          hour, str(time.minute).zfill(2), str(time.second).zfill(2), ampm, \
+        if hour >= 24:
+          hour -= 24
+        tweeting = "{} à {} jusqu'à {}:{}:{}. #PokemonGo {}".format( \
+          idToPokemon[str(e_new['pokemon_id'])].encode('utf-8'), destination, \
+          hour, str(time.minute).zfill(2), str(time.second).zfill(2), \
           shortener.short(gmap))
         tweet.statuses.update(status=tweeting)
         print tweeting
-        data[e_new['pokemon_id']-1] += 1
         # Google api timeout
         t.sleep(0.5)
     
-  with open('data.json', 'w') as outfile:
+  with open(os.path.join(os.path.dirname(__file__), './data.json'), 'w') as outfile:
     json.dump(dump, outfile)
-  with open('data.txt', 'w') as outfile:
-    for item in data:
-      print>>outfile, item
     
 if __name__ == "__main__":
   # Read list of rares, if not add all kanto pokemon id
-  if os.path.isfile('rares.txt'):
-    with open('rares.txt', 'r') as file:
+  if os.path.isfile(os.path.join(os.path.dirname(__file__), './rares.txt')):
+    with open(os.path.join(os.path.dirname(__file__), './rares.txt'), 'r') as file:
       rares = [int(x) for x in file.read().split()]
   else:
     print("rares.txt not found, adding all pokemon instead.")
     rares = [x+1 for x in range(151)]
-    
-  if os.path.isfile('data.txt'):
-    with open('data.txt', 'r') as file:
-      data = [int(x) for x in file.read().split()]
+
+  with open(os.path.join(os.path.dirname(__file__), './static/locales/pokemon.fr.json')) as data_file:
+    idToPokemon = json.load(data_file)
 
   while True:
     try:

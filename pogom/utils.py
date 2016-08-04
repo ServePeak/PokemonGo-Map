@@ -67,6 +67,12 @@ def get_args():
     parser.add_argument('-ld', '--login-delay',
                         help='Time delay between each login attempt',
                         type=float, default=5)
+    parser.add_argument('-lr', '--login-retries',
+                        help='Number of logins attempts before refreshing a thread',
+                        type=int, default=3)
+    parser.add_argument('-sr', '--scan-retries',
+                        help='Number of retries for a given scan cell',
+                        type=int, default=5)
     parser.add_argument('-dc', '--display-in-console',
                         help='Display Found Pokemon in Console',
                         action='store_true', default=False)
@@ -107,39 +113,49 @@ def get_args():
     if real_scan:
       args.scan_delay = real_scan
 
-    if (args.username is None or args.location is None or args.step_limit is None):
-        parser.print_usage()
-        print sys.argv[0] + ': error: arguments -u/--username, -l/--location, -st/--step-limit, -N/--num are required'
-        sys.exit(1);
-        
+    errors = []
+
+    if (args.username is None):
+      errors.append('Missing `username` either as -u/--username or in config')
+
+    if (args.location is None):
+      errors.append('Missing `location` either as -l/--location or in config')
+
+    if (args.password is None):
+      errors.append('Missing `password` either as -p/--password or in config')
+
+    if (args.step_limit is None):
+      errors.append('Missing `step_limit` either as -st/--step-limit or in config')
+
     if args.auth_service is None:
         args.auth_service = ['ptc']
-
-    if args.password is None:
-        args.password = getpass.getpass()
     
-    num_username = len(args.username)
-    
-    # If there are multiple usernames, then we either need one passwords that we use for all,
-    # or equal amount so that they match 1:1. Same for authentication services.
-    if num_username > 1:
-        num_passwd = len(args.password)
-        if (num_passwd == 1):
-            log.debug('More than one username and one password given. Using same password for all accounts.')
-            args.password = args.password * num_username
-        elif (num_passwd > 1 and num_username != num_passwd):
-            print sys.argv[0] + ': error: number of usernames ({}) does not match the number of passwords ({})' \
-                                .format(num_username, num_passwd)
-            sys.exit(1);
+    num_auths = len(args.auth_service)
+    num_usernames = len(args.username)
+    num_passwords = len(args.password)
+    if num_usernames > 1:
+        if num_passwords > 1 and num_usernames != num_passwords:
+            errors.append('The number of provided passwords ({}) must match the username count ({})'.format(num_passwords, num_usernames))
+        if num_auths > 1 and num_usernames != num_auths:
+            errors.append('The number of provided auth ({}) must match the username count ({})'.format(num_auths, num_usernames))
 
-        num_auth = len(args.auth_service)
-        if (num_auth == 1):
-            log.debug('More than one username and one auth service given. Using same auth service for all accounts.')
-            args.auth_service = args.auth_service * num_username
-        if (num_auth > 1 and num_username != num_auth):
-            print sys.argv[0] + ': error: number of usernames ({}) does not match the number of auth providers ({})' \
-                                .format(num_username, num_auth)
-            sys.exit(1);
+    if len(errors) > 0:
+        parser.print_usage()
+        print sys.argv[0] + ": errors: \n - " + "\n - ".join(errors)
+        sys.exit(1)
+
+    # Fill the pass/auth if set to a single value
+    if num_passwords == 1:
+        args.password = [ args.password[0] ] * num_usernames
+    if num_auths == 1:
+        args.auth_service = [ args.auth_service[0] ] * num_usernames
+
+    # Make our accounts list
+    args.accounts = []
+
+    # Make the accounts list
+    for i, username in enumerate(args.username):
+        args.accounts.append({'username': username, 'password': args.password[i], 'auth_service': args.auth_service[i]})
 
     return args
 

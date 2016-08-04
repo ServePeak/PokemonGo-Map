@@ -6,7 +6,9 @@
 *.py.bak
 *.bat
 rares.txt
+data.txt
 data.json
+Current Rares.txt
 null
 config/config.ini
 config/credentials.json

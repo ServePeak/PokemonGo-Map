@@ -143,7 +143,7 @@ class ScannedLocation(BaseModel):
         return scans
 
 
-def parse_map(map_dict, iteration_num, step, step_location):
+def parse_map(map_dict, step_location):
     pokemons = {}
     scanned = {}
 
@@ -192,6 +192,8 @@ def parse_map(map_dict, iteration_num, step, step_location):
     }
 
     bulk_upsert(ScannedLocation, scanned)
+    
+    return True
 
 
 
@@ -203,7 +205,7 @@ def bulk_upsert(cls, data):
     flaskDb.connect_db()
 
     while i < num_rows:
-        log.debug("Inserting items {} to {}".format(i, min(i+step, num_rows)))
+        log.debug('Inserting items %d to %d', i, min(i+step, num_rows))
         try:
             InsertQuery(cls, rows=data.values()[i:min(i+step, num_rows)]).upsert().execute()
         except (OperationalError, InternalError) as e:
